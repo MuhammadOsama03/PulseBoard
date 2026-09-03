@@ -1,3 +1,5 @@
+import { revalidatePath } from "next/cache";
+
 type Project = {
   id: string;
   name: string;
@@ -12,19 +14,42 @@ const demoProjects = [
   { name: "Analytics rollout", progress: 88, description: "9 tasks in the current delivery cycle.", status: "On track" },
 ];
 
+function getApiUrl() {
+  return process.env.PULSEBOARD_API_URL ?? "http://localhost:4000";
+}
+
 async function loadProjects() {
-  const apiUrl = process.env.PULSEBOARD_API_URL ?? "http://localhost:4000";
-  const response = await fetch(`${apiUrl}/projects`, { cache: "no-store" });
+  const response = await fetch(`${getApiUrl()}/projects`, { cache: "no-store" });
   if (!response.ok) throw new Error("Unable to load projects");
   return response.json() as Promise<Project[]>;
+}
+
+async function createProject(formData: FormData) {
+  "use server";
+
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+
+  if (name.length < 3 || description.length < 10) return;
+
+  const response = await fetch(`${getApiUrl()}/projects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, description }),
+  });
+
+  if (!response.ok) throw new Error("Unable to create project");
+  revalidatePath("/");
 }
 
 export default async function HomePage() {
   let projects = demoProjects;
   let sourceLabel = "Demo workspace";
+  let apiAvailable = false;
 
   try {
     const apiProjects = await loadProjects();
+    apiAvailable = true;
     if (apiProjects.length > 0) {
       projects = apiProjects.map((project) => ({
         name: project.name,
@@ -33,6 +58,9 @@ export default async function HomePage() {
         status: project.status,
       }));
       sourceLabel = "Live API data";
+    } else {
+      projects = [];
+      sourceLabel = "Live workspace - no projects yet";
     }
   } catch {
     sourceLabel = "API offline - showing demo data";
@@ -46,8 +74,23 @@ export default async function HomePage() {
           <h1>Team execution at a glance.</h1>
           <p className="lede">A collaborative workspace for projects, task ownership, live activity, and delivery analytics.</p>
         </div>
-        <button type="button">New project</button>
       </header>
+
+      {apiAvailable && (
+        <section aria-labelledby="create-project-heading" style={{ marginBottom: "2.5rem" }}>
+          <div className="sectionHeading">
+            <div>
+              <p className="eyebrow">Quick create</p>
+              <h2 id="create-project-heading">Start a new project</h2>
+            </div>
+          </div>
+          <form action={createProject} style={{ display: "grid", gridTemplateColumns: "minmax(180px, 0.8fr) minmax(260px, 1.5fr) auto", gap: "0.75rem" }}>
+            <input name="name" minLength={3} maxLength={80} required placeholder="Project name" style={{ borderRadius: 12, border: "1px solid rgba(148,163,184,.25)", background: "rgba(15,23,42,.72)", color: "inherit", padding: "0.85rem 1rem" }} />
+            <input name="description" minLength={10} maxLength={500} required placeholder="What is this project delivering?" style={{ borderRadius: 12, border: "1px solid rgba(148,163,184,.25)", background: "rgba(15,23,42,.72)", color: "inherit", padding: "0.85rem 1rem" }} />
+            <button type="submit">Create project</button>
+          </form>
+        </section>
+      )}
 
       <section className="metrics" aria-label="Workspace metrics">
         <article><strong>{projects.length}</strong><span>Visible projects</span></article>
