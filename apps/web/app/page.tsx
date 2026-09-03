@@ -8,11 +8,26 @@ type Project = {
   progress: number;
 };
 
+type Task = {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  status: "backlog" | "todo" | "in_progress" | "review" | "done";
+  priority: "low" | "medium" | "high" | "urgent";
+};
+
 const demoProjects = [
   { name: "Website relaunch", progress: 72, description: "18 tasks in the current delivery cycle.", status: "On track" },
   { name: "Mobile onboarding", progress: 46, description: "11 tasks in the current delivery cycle.", status: "Needs attention" },
   { name: "Analytics rollout", progress: 88, description: "9 tasks in the current delivery cycle.", status: "On track" },
 ];
+
+const demoTaskMetrics = {
+  open: 21,
+  inProgress: 7,
+  completed: 16,
+};
 
 function getApiUrl() {
   return process.env.PULSEBOARD_API_URL ?? "http://localhost:4000";
@@ -22,6 +37,12 @@ async function loadProjects() {
   const response = await fetch(`${getApiUrl()}/projects`, { cache: "no-store" });
   if (!response.ok) throw new Error("Unable to load projects");
   return response.json() as Promise<Project[]>;
+}
+
+async function loadTasks() {
+  const response = await fetch(`${getApiUrl()}/tasks`, { cache: "no-store" });
+  if (!response.ok) throw new Error("Unable to load tasks");
+  return response.json() as Promise<Task[]>;
 }
 
 async function createProject(formData: FormData) {
@@ -46,10 +67,13 @@ export default async function HomePage() {
   let projects = demoProjects;
   let sourceLabel = "Demo workspace";
   let apiAvailable = false;
+  let taskMetrics = demoTaskMetrics;
+  let recentTasks: Task[] = [];
 
   try {
-    const apiProjects = await loadProjects();
+    const [apiProjects, apiTasks] = await Promise.all([loadProjects(), loadTasks()]);
     apiAvailable = true;
+
     if (apiProjects.length > 0) {
       projects = apiProjects.map((project) => ({
         name: project.name,
@@ -62,6 +86,15 @@ export default async function HomePage() {
       projects = [];
       sourceLabel = "Live workspace - no projects yet";
     }
+
+    const completed = apiTasks.filter((task) => task.status === "done").length;
+    const inProgress = apiTasks.filter((task) => task.status === "in_progress" || task.status === "review").length;
+    taskMetrics = {
+      open: apiTasks.length - completed,
+      inProgress,
+      completed,
+    };
+    recentTasks = apiTasks.slice(0, 5);
   } catch {
     sourceLabel = "API offline - showing demo data";
   }
@@ -94,9 +127,9 @@ export default async function HomePage() {
 
       <section className="metrics" aria-label="Workspace metrics">
         <article><strong>{projects.length}</strong><span>Visible projects</span></article>
-        <article><strong>21</strong><span>Open tasks</span></article>
-        <article><strong>7</strong><span>In progress</span></article>
-        <article><strong>84%</strong><span>On-time rate</span></article>
+        <article><strong>{taskMetrics.open}</strong><span>Open tasks</span></article>
+        <article><strong>{taskMetrics.inProgress}</strong><span>In progress</span></article>
+        <article><strong>{taskMetrics.completed}</strong><span>Completed</span></article>
       </section>
 
       <section>
@@ -124,6 +157,30 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {apiAvailable && recentTasks.length > 0 && (
+        <section style={{ marginTop: "2.5rem" }}>
+          <div className="sectionHeading">
+            <div>
+              <p className="eyebrow">Task flow</p>
+              <h2>Recent work</h2>
+            </div>
+            <span>{recentTasks.length} most recent tasks</span>
+          </div>
+          <div className="projectGrid">
+            {recentTasks.map((task) => (
+              <article className="projectCard" key={task.id}>
+                <div className="projectMeta">
+                  <span>{task.status.replaceAll("_", " ")}</span>
+                  <strong>{task.priority}</strong>
+                </div>
+                <h3>{task.title}</h3>
+                <p>{task.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
