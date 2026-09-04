@@ -17,10 +17,10 @@ type Task = {
   priority: "low" | "medium" | "high" | "urgent";
 };
 
-const demoProjects = [
-  { name: "Website relaunch", progress: 72, description: "18 tasks in the current delivery cycle.", status: "On track" },
-  { name: "Mobile onboarding", progress: 46, description: "11 tasks in the current delivery cycle.", status: "Needs attention" },
-  { name: "Analytics rollout", progress: 88, description: "9 tasks in the current delivery cycle.", status: "On track" },
+const demoProjects: Project[] = [
+  { id: "demo-website", name: "Website relaunch", progress: 72, description: "18 tasks in the current delivery cycle.", status: "On track" },
+  { id: "demo-mobile", name: "Mobile onboarding", progress: 46, description: "11 tasks in the current delivery cycle.", status: "Needs attention" },
+  { id: "demo-analytics", name: "Analytics rollout", progress: 88, description: "9 tasks in the current delivery cycle.", status: "On track" },
 ];
 
 const demoTaskMetrics = {
@@ -63,6 +63,42 @@ async function createProject(formData: FormData) {
   revalidatePath("/");
 }
 
+async function createTask(formData: FormData) {
+  "use server";
+
+  const projectId = String(formData.get("projectId") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const priority = String(formData.get("priority") ?? "medium");
+  const dueDateInput = String(formData.get("dueDate") ?? "").trim();
+  const priorities = ["low", "medium", "high", "urgent"];
+
+  if (!projectId || title.length < 3 || description.length < 5 || !priorities.includes(priority)) return;
+
+  const response = await fetch(`${getApiUrl()}/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      projectId,
+      title,
+      description,
+      priority,
+      dueDate: dueDateInput ? new Date(dueDateInput).toISOString() : null,
+    }),
+  });
+
+  if (!response.ok) throw new Error("Unable to create task");
+  revalidatePath("/");
+}
+
+const fieldStyle = {
+  borderRadius: 12,
+  border: "1px solid rgba(148,163,184,.25)",
+  background: "rgba(15,23,42,.72)",
+  color: "inherit",
+  padding: "0.85rem 1rem",
+};
+
 export default async function HomePage() {
   let projects = demoProjects;
   let sourceLabel = "Demo workspace";
@@ -73,17 +109,11 @@ export default async function HomePage() {
   try {
     const [apiProjects, apiTasks] = await Promise.all([loadProjects(), loadTasks()]);
     apiAvailable = true;
+    projects = apiProjects;
 
     if (apiProjects.length > 0) {
-      projects = apiProjects.map((project) => ({
-        name: project.name,
-        progress: project.progress,
-        description: project.description,
-        status: project.status,
-      }));
       sourceLabel = "Live API data";
     } else {
-      projects = [];
       sourceLabel = "Live workspace - no projects yet";
     }
 
@@ -118,9 +148,39 @@ export default async function HomePage() {
             </div>
           </div>
           <form action={createProject} style={{ display: "grid", gridTemplateColumns: "minmax(180px, 0.8fr) minmax(260px, 1.5fr) auto", gap: "0.75rem" }}>
-            <input name="name" minLength={3} maxLength={80} required placeholder="Project name" style={{ borderRadius: 12, border: "1px solid rgba(148,163,184,.25)", background: "rgba(15,23,42,.72)", color: "inherit", padding: "0.85rem 1rem" }} />
-            <input name="description" minLength={10} maxLength={500} required placeholder="What is this project delivering?" style={{ borderRadius: 12, border: "1px solid rgba(148,163,184,.25)", background: "rgba(15,23,42,.72)", color: "inherit", padding: "0.85rem 1rem" }} />
+            <input name="name" minLength={3} maxLength={80} required placeholder="Project name" style={fieldStyle} />
+            <input name="description" minLength={10} maxLength={500} required placeholder="What is this project delivering?" style={fieldStyle} />
             <button type="submit">Create project</button>
+          </form>
+        </section>
+      )}
+
+      {apiAvailable && projects.length > 0 && (
+        <section aria-labelledby="create-task-heading" style={{ marginBottom: "2.5rem" }}>
+          <div className="sectionHeading">
+            <div>
+              <p className="eyebrow">Add work</p>
+              <h2 id="create-task-heading">Create a task</h2>
+            </div>
+            <span>Assign it to an active project</span>
+          </div>
+          <form action={createTask} style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(180px, 1fr))", gap: "0.75rem" }}>
+            <select name="projectId" required defaultValue="" aria-label="Project" style={fieldStyle}>
+              <option value="" disabled>Select project</option>
+              {projects.map((project) => (
+                <option value={project.id} key={project.id}>{project.name}</option>
+              ))}
+            </select>
+            <input name="title" minLength={3} maxLength={120} required placeholder="Task title" style={fieldStyle} />
+            <input name="description" minLength={5} maxLength={1000} required placeholder="Task description" style={fieldStyle} />
+            <select name="priority" defaultValue="medium" aria-label="Priority" style={fieldStyle}>
+              <option value="low">Low priority</option>
+              <option value="medium">Medium priority</option>
+              <option value="high">High priority</option>
+              <option value="urgent">Urgent</option>
+            </select>
+            <input name="dueDate" type="datetime-local" aria-label="Due date" style={fieldStyle} />
+            <button type="submit">Add task</button>
           </form>
         </section>
       )}
@@ -143,7 +203,7 @@ export default async function HomePage() {
 
         <div className="projectGrid">
           {projects.map((project) => (
-            <article className="projectCard" key={project.name}>
+            <article className="projectCard" key={project.id}>
               <div className="projectMeta">
                 <span>{project.status}</span>
                 <strong>{project.progress}%</strong>
