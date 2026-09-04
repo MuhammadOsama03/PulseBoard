@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
 
+import { RealtimeRefresh } from "./realtime-refresh";
+
 type Project = { id: string; name: string; description: string; status: string; progress: number };
 type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
 type Task = { id: string; projectId: string; title: string; description: string; status: TaskStatus; priority: "low" | "medium" | "high" | "urgent" };
@@ -16,6 +18,7 @@ const statuses: { value: TaskStatus; label: string }[] = [
 ];
 
 function getApiUrl() { return process.env.PULSEBOARD_API_URL ?? "http://localhost:4000"; }
+function getPublicApiUrl() { return process.env.NEXT_PUBLIC_PULSEBOARD_API_URL ?? getApiUrl(); }
 async function loadProjects() { const response = await fetch(`${getApiUrl()}/projects`, { cache: "no-store" }); if (!response.ok) throw new Error("Unable to load projects"); return response.json() as Promise<Project[]>; }
 async function loadTasks() { const response = await fetch(`${getApiUrl()}/tasks`, { cache: "no-store" }); if (!response.ok) throw new Error("Unable to load tasks"); return response.json() as Promise<Task[]>; }
 async function loadActivity() { const response = await fetch(`${getApiUrl()}/activity?limit=8`, { cache: "no-store" }); if (!response.ok) throw new Error("Unable to load activity"); return response.json() as Promise<ActivityEvent[]>; }
@@ -55,7 +58,7 @@ export default async function HomePage() {
   } catch { sourceLabel = "API offline - showing demo data"; }
 
   return <main className="shell">
-    <header className="hero"><div><p className="eyebrow">PulseBoard</p><h1>Team execution at a glance.</h1><p className="lede">A collaborative workspace for projects, task ownership, live activity, and delivery analytics.</p></div></header>
+    <header className="hero"><div><p className="eyebrow">PulseBoard</p><h1>Team execution at a glance.</h1><p className="lede">A collaborative workspace for projects, task ownership, live activity, and delivery analytics.</p></div><RealtimeRefresh apiUrl={getPublicApiUrl()} /></header>
     {apiAvailable && <section aria-labelledby="create-project-heading" style={{ marginBottom: "2.5rem" }}><div className="sectionHeading"><div><p className="eyebrow">Quick create</p><h2 id="create-project-heading">Start a new project</h2></div></div><form action={createProject} style={{ display: "grid", gridTemplateColumns: "minmax(180px, 0.8fr) minmax(260px, 1.5fr) auto", gap: "0.75rem" }}><input name="name" minLength={3} maxLength={80} required placeholder="Project name" style={fieldStyle} /><input name="description" minLength={10} maxLength={500} required placeholder="What is this project delivering?" style={fieldStyle} /><button type="submit">Create project</button></form></section>}
     {apiAvailable && projects.length > 0 && <section aria-labelledby="create-task-heading" style={{ marginBottom: "2.5rem" }}><div className="sectionHeading"><div><p className="eyebrow">Add work</p><h2 id="create-task-heading">Create a task</h2></div><span>Assign it to an active project</span></div><form action={createTask} style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(180px, 1fr))", gap: "0.75rem" }}><select name="projectId" required defaultValue="" aria-label="Project" style={fieldStyle}><option value="" disabled>Select project</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select><input name="title" minLength={3} maxLength={120} required placeholder="Task title" style={fieldStyle} /><input name="description" minLength={5} maxLength={1000} required placeholder="Task description" style={fieldStyle} /><select name="priority" defaultValue="medium" aria-label="Priority" style={fieldStyle}><option value="low">Low priority</option><option value="medium">Medium priority</option><option value="high">High priority</option><option value="urgent">Urgent</option></select><input name="dueDate" type="datetime-local" aria-label="Due date" style={fieldStyle} /><button type="submit">Add task</button></form></section>}
     <section className="metrics" aria-label="Workspace metrics"><article><strong>{projects.length}</strong><span>Visible projects</span></article><article><strong>{taskMetrics.open}</strong><span>Open tasks</span></article><article><strong>{taskMetrics.inProgress}</strong><span>In progress</span></article><article><strong>{taskMetrics.completed}</strong><span>Completed</span></article></section>
