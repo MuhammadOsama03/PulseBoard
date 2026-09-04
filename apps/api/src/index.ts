@@ -4,7 +4,13 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 
 import { listActivity, recordActivity } from "./activity-store.js";
-import { createProject, createProjectSchema, listProjects } from "./projects.js";
+import {
+  createProject,
+  createProjectSchema,
+  getProject,
+  listProjects,
+  syncProjectProgress,
+} from "./projects.js";
 import {
   createTask,
   createTaskSchema,
@@ -31,6 +37,12 @@ function getActorId(request: Request): string {
 function publishActivity(event: ReturnType<typeof recordActivity>) {
   io.emit("activity:created", event);
   return event;
+}
+
+function refreshProjectPulse(projectId: string) {
+  const project = syncProjectProgress(projectId, listTasks(projectId));
+  if (project) io.emit("project:updated", project);
+  return project;
 }
 
 app.get("/health", (_request, response) => {
@@ -72,7 +84,13 @@ app.post("/tasks", (request, response) => {
     return;
   }
 
+  if (!getProject(parsed.data.projectId)) {
+    response.status(404).json({ error: "Project not found" });
+    return;
+  }
+
   const task = createTask(parsed.data);
+  const project = refreshProjectPulse(task.projectId);
   const activity = publishActivity(recordActivity({
     projectId: task.projectId,
     actorId: getActorId(request),
@@ -81,7 +99,7 @@ app.post("/tasks", (request, response) => {
   }));
 
   io.emit("task:created", task);
-  response.status(201).json({ ...task, activity });
+  response.status(201).json({ ...task, project, activity });
 });
 
 app.patch("/tasks/:taskId/status", (request, response) => {
@@ -97,6 +115,7 @@ app.patch("/tasks/:taskId/status", (request, response) => {
     return;
   }
 
+  const project = refreshProjectPulse(task.projectId);
   const activity = publishActivity(recordActivity({
     projectId: task.projectId,
     actorId: getActorId(request),
@@ -105,7 +124,7 @@ app.patch("/tasks/:taskId/status", (request, response) => {
   }));
 
   io.emit("task:updated", task);
-  response.json({ ...task, activity });
+  response.json({ ...task, project, activity });
 });
 
 app.get("/activity", (request, response) => {
