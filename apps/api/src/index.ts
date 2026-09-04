@@ -1,8 +1,9 @@
 import cors from "cors";
-import express from "express";
+import express, { type Request } from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 
+import { listActivity, recordActivity } from "./activity-store.js";
 import { createProject, createProjectSchema, listProjects } from "./projects.js";
 import {
   createTask,
@@ -23,6 +24,15 @@ const io = new Server(httpServer, {
 app.use(cors({ origin: webOrigin }));
 app.use(express.json());
 
+function getActorId(request: Request): string {
+  return request.header("x-actor-id")?.trim() || "system";
+}
+
+function publishActivity(event: ReturnType<typeof recordActivity>) {
+  io.emit("activity:created", event);
+  return event;
+}
+
 app.get("/health", (_request, response) => {
   response.json({ status: "ok", service: "pulseboard-api", realtime: true });
 });
@@ -39,8 +49,15 @@ app.post("/projects", (request, response) => {
   }
 
   const project = createProject(parsed.data);
+  const activity = publishActivity(recordActivity({
+    projectId: project.id,
+    actorId: getActorId(request),
+    type: "project.created",
+    message: `Created project "${project.name}"`,
+  }));
+
   io.emit("project:created", project);
-  response.status(201).json(project);
+  response.status(201).json({ ...project, activity });
 });
 
 app.get("/tasks", (request, response) => {
@@ -56,8 +73,15 @@ app.post("/tasks", (request, response) => {
   }
 
   const task = createTask(parsed.data);
+  const activity = publishActivity(recordActivity({
+    projectId: task.projectId,
+    actorId: getActorId(request),
+    type: "task.created",
+    message: `Created task "${task.title}"`,
+  }));
+
   io.emit("task:created", task);
-  response.status(201).json(task);
+  response.status(201).json({ ...task, activity });
 });
 
 app.patch("/tasks/:taskId/status", (request, response) => {
@@ -73,8 +97,25 @@ app.patch("/tasks/:taskId/status", (request, response) => {
     return;
   }
 
+  const activity = publishActivity(recordActivity({
+    projectId: task.projectId,
+    actorId: getActorId(request),
+    type: task.status === "done" ? "task.completed" : "task.updated",
+    message: `Moved "${task.title}" to ${task.status.replaceAll("_", " ")}`,
+  }));
+
   io.emit("task:updated", task);
-  response.json(task);
+  response.json({ ...task, activity });
+});
+
+app.get("/activity", (request, response) => {
+  const projectId = typeof request.query.projectId === "string" ? request.query.projectId : undefined;
+  const requestedLimit = Number(request.query.limit ?? 50);
+  const limit = Number.isInteger(requestedLimit)
+    ? Math.min(Math.max(requestedLimit, 1), 100)
+    : 50;
+
+  response.json(listActivity(projectId, limit));
 });
 
 io.on("connection", (socket) => {
