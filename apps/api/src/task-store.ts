@@ -15,13 +15,26 @@ export const updateTaskStatusSchema = z.object({
   status: z.enum(["backlog", "todo", "in_progress", "review", "done"]),
 });
 
+export const taskListQuerySchema = z.object({
+  projectId: z.string().uuid().optional(),
+  status: z.enum(["backlog", "todo", "in_progress", "review", "done"]).optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  assigneeId: z.string().trim().min(1).optional(),
+});
+
 export type NewTaskInput = z.infer<typeof createTaskSchema>;
+export type TaskListQuery = z.infer<typeof taskListQuerySchema>;
 
 const tasks: Task[] = [];
 
-export function listTasks(projectId?: string): Task[] {
-  if (!projectId) return [...tasks];
-  return tasks.filter((task) => task.projectId === projectId);
+export function listTasks(filters: TaskListQuery = {}): Task[] {
+  return tasks.filter((task) => {
+    if (filters.projectId && task.projectId !== filters.projectId) return false;
+    if (filters.status && task.status !== filters.status) return false;
+    if (filters.priority && task.priority !== filters.priority) return false;
+    if (filters.assigneeId && task.assigneeId !== filters.assigneeId) return false;
+    return true;
+  });
 }
 
 export function createTask(input: NewTaskInput): Task {
