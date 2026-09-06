@@ -9,6 +9,10 @@ export const createProjectSchema = z.object({
 
 const projects: Project[] = [];
 
+export function resetProjects(): void {
+  projects.length = 0;
+}
+
 export function listProjects(): Project[] {
   return [...projects];
 }
