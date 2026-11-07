@@ -201,3 +201,30 @@ h2 {
     flex-direction: column;
   }
 }
+
+/* Portfolio presentation pass: consistent controls, visible focus and calmer surfaces */
+:root { --accent:#70e9c3; --surface:#101f33; --border:rgba(158,185,214,.2); }
+html { scroll-behavior:smooth; }
+body { background:radial-gradient(ellipse at 85% 0%,rgba(36,179,159,.14),transparent 38%),radial-gradient(ellipse at 0% 40%,rgba(56,112,219,.09),transparent 44%),#07111f; }
+.shell { max-width:1240px; }
+.hero { padding:1.5rem 0 2rem; border-bottom:1px solid var(--border); }
+.metrics { margin-top:2.2rem; margin-bottom:2.6rem; }
+.metrics article,.projectCard { transition:border-color .2s ease,transform .2s ease,box-shadow .2s ease; }
+.projectCard:hover { border-color:rgba(110,231,183,.4); transform:translateY(-2px); }
+.metrics strong { color:#f4fbff; font-variant-numeric:tabular-nums; }
+button { transition:filter .15s ease,transform .15s ease,background .15s ease; }
+button:hover { filter:brightness(1.08); transform:translateY(-1px); }
+button:active { transform:translateY(0); }
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible { outline:3px solid #86dfff; outline-offset:3px; }
+input,select,textarea { min-width:0; max-width:100%; }
+form { gap:.75rem; }
+section { margin-block:2rem; }
+section > h2 { margin-bottom:1.1rem; }
+.projectCard h3 { overflow-wrap:anywhere; }
+.task-actions { margin-top:1rem; display:grid; gap:.75rem; }
+.task-actions details { border:1px solid var(--border); border-radius:14px; padding:.75rem; background:rgba(6,17,31,.42); }
+.task-actions summary { cursor:pointer; font-weight:700; color:#9debd5; }
+.task-actions details[open] summary { margin-bottom:.9rem; }
+.task-actions .danger-button { background:transparent; color:#ffb5bd; border:1px solid rgba(255,123,145,.45); }
+.task-actions .danger-button:hover { background:rgba(255,123,145,.12); }
+@media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } button,.projectCard,.metrics article { transition:none; } .projectCard:hover,button:hover { transform:none; } }
