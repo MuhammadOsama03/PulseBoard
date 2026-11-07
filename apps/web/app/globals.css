@@ -228,3 +228,24 @@ section > h2 { margin-bottom:1.1rem; }
 .task-actions .danger-button { background:transparent; color:#ffb5bd; border:1px solid rgba(255,123,145,.45); }
 .task-actions .danger-button:hover { background:rgba(255,123,145,.12); }
 @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } button,.projectCard,.metrics article { transition:none; } .projectCard:hover,button:hover { transform:none; } }
+
+/* Two-page workspace: more whitespace, fewer competing actions */
+.shell { width:min(1280px,calc(100% - 3rem)); padding-top:1.5rem; }
+.workspaceNav { display:flex; align-items:center; gap:.4rem; padding:.5rem; width:fit-content; margin-bottom:3rem; border:1px solid var(--border); border-radius:16px; background:rgba(15,23,42,.72); }
+.workspaceNav a { color:#afc0d3; text-decoration:none; font-size:.93rem; font-weight:700; padding:.75rem 1.15rem; border-radius:11px; }
+.workspaceNav a:hover,.workspaceNav a:focus-visible { color:#07111f; background:#6ee7b7; }
+.hero { margin-bottom:2rem; padding:0 0 2.5rem; }
+.hero h1 { max-width:790px; font-size:clamp(2.3rem,4.1vw,4.1rem); line-height:1.07; }
+.hero--compact h1 { max-width:780px; font-size:clamp(2.1rem,3.6vw,3.5rem); }
+.lede { max-width:680px; }
+.createPanel { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:1.5rem; border:1px solid var(--border); border-radius:24px; background:rgba(15,23,42,.6); padding:1.7rem; margin-block:2rem 2.5rem; }
+.createPanel h2 { font-size:1.45rem; }
+.createPanel form { display:flex; flex-wrap:wrap; align-items:center; gap:.8rem; }
+.createPanel input,.createPanel select { border-radius:12px !important; }
+.createPanel form button { flex-shrink:0; }
+.metrics { gap:1.25rem; }
+.metrics article { padding:1.65rem; min-height:140px; }
+.projectGrid { gap:1.4rem; }
+.projectCard { padding:1.7rem; }
+.progressTrack { margin-top:1.25rem; }
+@media(max-width:750px) { .shell { width:calc(100% - 2rem); } .workspaceNav { width:100%; } .workspaceNav a { flex:1; text-align:center; } .createPanel { padding:1.2rem; } .createPanel form,.createPanel form input,.createPanel form select,.createPanel form button { width:100%; } }
